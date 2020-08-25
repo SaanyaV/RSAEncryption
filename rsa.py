@@ -128,4 +128,5 @@ class keyGen():
     
 k = keyGen(lessthanPrime=2000, randomPQ = True)
 #k = keyGen(lessthanPrime=100, randomPQ = False)
-      
+output = k.generateKeys()
+print(output)
