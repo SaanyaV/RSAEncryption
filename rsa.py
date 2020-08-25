@@ -18,42 +18,86 @@ class keyGen():
     4. compute phiN ((p-1)*(q-1)) [@ computePhiN]
     5. find coprimes of N and phiN [@ findCoPrimes]
     5a. requires list of primefactors of N [@ primeFactorList]
-    5b. requires list of primes less than phiN [@ primeFactorLessThan]
-    5.b.1. requires a test of prime number [@ testPrimeSmall]
-    6. randomly select one coprime (e) [@ selectE]
+    5b. requires list of primefactors of phiN [@ primeFactorList]
+    6. randomly select one coprime (e) [@ selectE - use in public key]
     7. find d [@ findD], d is always <= e
     """
     
-    def __init__(self,lessthanPrime = 1000, randomPQ = True):
-        if randomPQ == True:
-            lessthanPrime = lessthanPrime
-            pfList = self.primeFactorLessThan(lessthanPrime)
-            self.p = pfList[rd.randint(0, len(pfList)-1)]
-            self.q=self.p
-            while self.q == self.p:
-                self.q = pfList[rd.randint(0, len(pfList)-1)]
+    def __init__(self, lessthanPrime = 1000, randomValues = True):
+        self.lessthanPrime = lessthanPrime
+        if int(self.lessthanPrime) == self.lessthanPrime:         
+            if randomValues == True:
+                self.output = self.runRSA_RandomInputs()
+            elif randomValues == False:
+                self.output = self.runRSA_KeyboardInputs()
+            else:
+                print("Incorrect Specification")
         else:
-            self.p = int(input("Input an integer value of p: "))
-            self.q = int(input("input an integer value of q: "))
-            
-        self.N = self.computeN(self.p,self.q)
-        self.phiN = self.computePhiN(self.p, self.q)
-        #result = self.generateKeys(N,phiN)
+            print("Provide an integer for the value of lessthanPrime")
         
-    def generateKeys(self):
+        self.keys = {
+            "publicKey"     : [self.output["E"], self.output["N"] ],
+            "privateKey"    : [self.output["D"], self.output["N"] ] 
+            }
+    
+    def runRSA_RandomInputs(self):
         start_time = time.time()
-        coPrimeList = self.findCoPrimes(self.N,self.phiN)
+        pfList = self.primeNumbersLessThan(self.lessthanPrime)
+        p = pfList[rd.randint(0, len(pfList)-1)]
+        q = p
+        while q == p:
+            q = pfList[rd.randint(0, len(pfList)-1)]
+        N = self.computeN(p,q)
+        phiN = self.computePhiN(p, q)
+        coPrimeList = self.findCoPrimes(N,phiN)
         E = self.selectE(coPrimeList)
-        #D = self.findD(E,self.phiN)
-        D = self.findD_K(E,self.phiN)
-        result = {
-            "N": self.N,
-            "phiN":self.phiN,
-            "E-public":E,
-            "D-private":D}
+        D = E
+        while D == E:
+            D = self.findD(E,phiN)
         end_time = time.time()
-        print(f"time taken is {round(end_time - start_time,2)} seconds")
-        return result
+        print(f"Time taken to produce keys is {round(end_time - start_time,2)} seconds")
+        return{ 
+            "p" : p,
+            "q" : q,
+            "N" : N,
+            "phiN" : phiN,
+            "coPrimeList": coPrimeList,
+            "E": E,
+            "D": D
+            }
+    
+    def runRSA_KeyboardInputs(self):
+        start_time = time.time()
+        checkPrime = False
+        while checkPrime == False:
+            p = int(input("Input an PRIME NUMBER value of p: "))
+            checkPrime = self.testPrimeSmall(p)
+        q = p
+        checkPrime = False
+        while (q == p) | (checkPrime == False):
+            q = int(input("input an PRIME NUMBER value of q: "))
+            checkPrime = self.testPrimeSmall(q)
+        N = self.computeN(p,q)
+        phiN = self.computePhiN(p, q)
+        coPrimeList = self.findCoPrimes(N,phiN)
+        print(coPrimeList)
+        incoPrimeList = False
+        while incoPrimeList == False:
+            E = int(input("Please input the value of the coprime you want to use: "))
+            if E in coPrimeList:
+                incoPrimeList = True
+        D = self.findD(E,phiN)
+        end_time = time.time()
+        print(f"Time taken to produce keys is {round(end_time - start_time,2)} seconds")
+        return{ 
+            "p" : p,
+            "q" : q,
+            "N" : N,
+            "phiN" : phiN,
+            "coPrimeList": coPrimeList,
+            "E": E,
+            "D": D
+            }
                 
     def computeN(self,p,q):
         n = p * q
@@ -65,11 +109,17 @@ class keyGen():
     
     def findCoPrimes(self,n,phiN):
         n_primeList = self.primeFactorList(n)
-        phiN_primesLessThan = self.primeFactorLessThan(phiN)
-        for i in n_primeList:
-            if i in phiN_primesLessThan:
-                phiN_primesLessThan.remove(i)
-        return phiN_primesLessThan
+        phiN_primeList = self.primeFactorList(phiN)
+        primeList = n_primeList + phiN_primeList
+        coprimeList = []
+        for i in range(2, phiN):
+            isCoprime = True
+            for x in primeList:
+                if i % x == 0:
+                    isCoprime = False
+            if isCoprime == True:
+                coprimeList.append(i)                       
+        return coprimeList
     
     def selectE(self,coprimeList):
         idx = rd.randint(0,len(coprimeList)-1) 
@@ -84,28 +134,6 @@ class keyGen():
             if d*e % phiN == 1:
                 keepTrying = False
         return d
-    
-    def findD_K(self,e,phiN):
-        d = 1
-        keepTrying = True
-        while keepTrying:
-            #print (d)
-            tmp_d = (1+d*phiN)/e
-            if (int(tmp_d) == tmp_d) | (d == e) :
-                keepTrying = False
-            d = d + 1
-        return d
-        
-    
-    def primeFactorLessThan(self,a):
-        pFactors =[2]
-        if a <= 2:
-            pFactors = [2]
-        else:
-            for i in range(3,a+1):
-                if self.testPrimeSmall(i):
-                    pFactors = pFactors + [i]
-        return pFactors  
 
     def testPrimeSmall(self,a):
         if a <= 1: 
@@ -126,7 +154,11 @@ class keyGen():
         return listPFactors
         
     
-k = keyGen(lessthanPrime=2000, randomPQ = True)
-#k = keyGen(lessthanPrime=100, randomPQ = False)
-output = k.generateKeys()
-print(output)
+k = keyGen(lessthanPrime=500, randomValues = True)
+#k = keyGen(lessthanPrime=100, randomValues = False)
+print(f"The value of p is: {k.output['p']}")
+print(f"The value of q is: {k.output['q']}")
+#print(f"The values in coprime list are: {k.output['coPrimeList']}")
+print(f"The public key is [e, n]: {k.keys['publicKey']}")
+print(f"The private key is [d, n]: {k.keys['privateKey']}")
+
