@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jun 20 14:37:31 2020
-
-@author: sunilverma
-"""
-
 import math
 import random as rd
 import time
